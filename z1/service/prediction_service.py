@@ -1,17 +1,17 @@
 import numpy as np
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import GridSearchCV, KFold
-from service.leave_one_out_mse_selector import LeaveOneOutMseSelector
+from .leave_one_out_mse_selector import LeaveOneOutMseSelector
+
 
 class PredictionService:
-
     def __init__(
         self,
         feature_selector,
-        k_candidates,
-        weights_candidates,
-        cv_splits,
-        min_train_samples,
+        k_candidates=None,
+        weights_candidates=None,
+        cv_splits=3,
+        min_train_samples=5,
     ):
         self._feature_selector = feature_selector
         self._k_candidates = k_candidates or [3, 5, 7, 9, 12, 15]
@@ -23,13 +23,7 @@ class PredictionService:
     def create_default(cls):
         return cls(feature_selector=LeaveOneOutMseSelector())
 
-    def predict_for_all_users(
-        self,
-        df_train,
-        df_task,
-        movie_ids,
-        matrices,
-    ):
+    def predict_for_all_users(self, df_train, df_task, movie_ids, matrices):
         df_submission = df_task.copy()
         movie_to_idx = {m_id: i for i, m_id in enumerate(movie_ids)}
         all_components = list(matrices.keys())
@@ -58,12 +52,10 @@ class PredictionService:
             u_train_idx = np.array([movie_to_idx[m] for m in valid_train['movie_id']])
             y_train = valid_train['evaluation'].values
 
-            # 1. Optymalizacja modelu i macierzy odległości dla pojedynczego użytkownika
             best_knn, best_dist_matrix = self._fit_best_user_model(
                 u_train_idx, y_train, matrices, all_components
             )
 
-            # 2. Predykcja dla filmów z task.csv
             predictions = self._predict_user_movies(
                 user_task_rows['movie_id'],
                 u_train_idx,
@@ -81,14 +73,7 @@ class PredictionService:
         df_submission['evaluation'] = df_submission['evaluation'].astype(int)
         return df_submission
 
-    def _fit_best_user_model(
-        self,
-        u_train_idx: np.ndarray,
-        y_train: np.ndarray,
-        matrices: dict[str, np.ndarray],
-        all_components: list[str],
-    ) -> tuple[KNeighborsRegressor, np.ndarray]:
-        """Dobiera podzbiór cech oraz hiperparametry kNN w walidacji krzyżowej (Hint 1, 2, 5, 6, 7, 8)."""
+    def _fit_best_user_model(self, u_train_idx, y_train, matrices, all_components):
         ranked_features = self._feature_selector.rank_features(u_train_idx, y_train, matrices)
 
         expert_set = [c for c in ['genres', 'cast_list', 'director', 'vote_average'] if c in matrices]
@@ -112,9 +97,7 @@ class PredictionService:
             if not feat_set:
                 continue
 
-            # Hint 2: Sumowanie podobieństw dla wybranych składowych i ich normalizacja
             combined_sim = sum(matrices[c] for c in feat_set) / len(feat_set)
-            # Bezpieczna konwersja podobieństwa [0, 1] na odległość [0, 1]
             combined_dist = np.clip(1.0 - combined_sim, 0.0, 1.0)
 
             X_train_dist = combined_dist[np.ix_(u_train_idx, u_train_idx)]
@@ -140,15 +123,7 @@ class PredictionService:
         return final_knn, best_dist_matrix
 
     @staticmethod
-    def _predict_user_movies(
-        task_movie_ids,
-        u_train_idx,
-        movie_to_idx,
-        model,
-        dist_matrix,
-        fallback_rating,
-    ):
-        """Wylicza i zaokrągla oceny do skali 0-5 dla filmów z zadania."""
+    def _predict_user_movies(task_movie_ids, u_train_idx, movie_to_idx, model, dist_matrix, fallback_rating):
         predictions = []
         for movie_id in task_movie_ids:
             if movie_id in movie_to_idx:

@@ -1,10 +1,10 @@
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer, MinMaxScaler
 
+
 class FeatureService:
     def __init__(self, num_cols=None):
-        if num_cols is None:
-           self. num_cols = ['release_year', 'vote_average', 'runtime']
+        self.num_cols = num_cols or ['release_year', 'vote_average', 'runtime']
         self.mlb_genres = MultiLabelBinarizer()
         self.mlb_cast = MultiLabelBinarizer()
         self.scaler = MinMaxScaler()
@@ -34,6 +34,4 @@ class FeatureService:
         scaled_nums = self.scaler.fit_transform(df[self.num_cols])
         nums_df = pd.DataFrame(scaled_nums, columns=self.num_cols, index=df.index)
 
-        final_features = pd.concat([nums_df, genres_df, cast_df], axis=1)
-
-        return final_features
+        return pd.concat([nums_df, genres_df, cast_df], axis=1)

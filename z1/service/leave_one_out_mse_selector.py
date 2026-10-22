@@ -1,13 +1,13 @@
-from service.feature_selector import FeatureSelector
 import numpy as np
+from .feature_selector import FeatureSelector
+
 
 class LeaveOneOutMseSelector(FeatureSelector):
-
     def rank_features(self, u_train_idx, y_train, matrices):
         scores = {}
         for comp, mat in matrices.items():
             sub_sim = mat[np.ix_(u_train_idx, u_train_idx)].copy()
-            np.fill_diagonal(sub_sim, 0.0)  # Ignorujemy podobieństwo filmu do samego siebie
+            np.fill_diagonal(sub_sim, 0.0)
 
             weights_sum = sub_sim.sum(axis=1)
             mask = weights_sum > 0
@@ -17,6 +17,6 @@ class LeaveOneOutMseSelector(FeatureSelector):
 
             pred = (sub_sim[mask] @ y_train) / weights_sum[mask]
             mse = np.mean((y_train[mask] - pred) ** 2)
-            scores[comp] = -mse  # Im mniejszy błąd MSE, tym wyższy wynik
+            scores[comp] = -mse
 
         return sorted(scores.keys(), key=lambda c: scores[c], reverse=True)

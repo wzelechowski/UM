@@ -1,9 +1,9 @@
 import numpy as np
 from similarity.similarity import Similarity
 
-class NumericSimilarity(Similarity):
 
-    def __init__(self, default_max_diff: float = 1.0):
+class NumericSimilarity(Similarity):
+    def __init__(self, default_max_diff=1.0):
         self.default_max_diff = default_max_diff
 
     def compute_matrix(self, series):
