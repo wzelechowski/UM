@@ -18,4 +18,4 @@ __pycache__/
 *.db-shm
 
 *.csv
-submission.csv
+z1/files/submission.csv

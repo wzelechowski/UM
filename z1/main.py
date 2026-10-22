@@ -19,7 +19,7 @@ def main():
 
     data_loader = DataLoader()
 
-    df_train, df_task = data_loader.load_data('train.csv', 'task.csv')
+    df_train, df_task = data_loader.load_data('files/train.csv', 'files/task.csv')
 
     movie_repository = MovieRepository(movie_db)
     movie_service = MovieService(df_train, df_task, movie_repository, tmdb_client)
@@ -31,7 +31,7 @@ def main():
     movie_ids, matrices = precompute_component_matrices(df_raw_features)
 
     df_submission = predict_for_all_users(df_train, df_task, movie_ids, matrices)
-    df_submission.to_csv('submission.csv', sep=';', header=False, index=False)
+    df_submission.to_csv('files/submission.csv', sep=';', header=False, index=False)
     print("Sukces! Plik submission.csv został wygenerowany.")
 
     tmdb_client.close()
