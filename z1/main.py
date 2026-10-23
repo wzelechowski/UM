@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from db.movie_db import MovieDB
 from client.tmdb_client import TMDBClient
@@ -7,40 +8,43 @@ from repository.movie_repository import MovieRepository
 from service.movie_service import MovieService
 from service.processing_service import ProcessingService
 from service.prediction_service import PredictionService
+from service.feature_service import FeatureService
+from service.submission_service import SubmissionService
 
 
 def main():
-    load_dotenv()
+    base_dir = Path(__file__).resolve().parent
+    load_dotenv(base_dir / '.env')
+
     api_key = os.getenv('API_KEY')
     if not api_key:
         raise ValueError("Brak klucza API_KEY w pliku .env!")
 
     tmdb_client = TMDBClient(api_key)
-    movie_db = MovieDB()
+    movie_db = MovieDB(str(base_dir / 'movies.sqlite'))
     data_loader = DataLoader()
 
-    df_train, df_task = data_loader.load_data('./files/train.csv', './files/task.csv')
+    df_train, df_task = data_loader.load_data(
+        str(base_dir / 'files' / 'train.csv'),
+        str(base_dir / 'files' / 'task.csv')
+    )
 
     movie_repository = MovieRepository(movie_db)
     movie_service = MovieService(df_train, df_task, movie_repository, tmdb_client)
+    feature_service = FeatureService(movie_service)
+    prediction_service = PredictionService.create_default()
+    processing_service = ProcessingService.create_default()
 
-    movie_service.sync_missing_movies()
-    all_required_ids = movie_service.get_all_required_ids()
-
-    df_raw_features = movie_repository.get_all_features_as_dataframe()
-    df_raw_features = df_raw_features[df_raw_features['movie_id'].isin(all_required_ids)]
+    submission_service = SubmissionService(processing_service, feature_service, prediction_service)
+    submission_service.submission_to_csv(
+        df_train,
+        df_task,
+        str(base_dir / 'files' / 'submission.csv')
+    )
+    print("Sukces! Plik submission.csv został wygenerowany.")
 
     tmdb_client.close()
     movie_db.close()
-
-    processing_service = ProcessingService.create_default()
-    movie_ids, matrices = processing_service.precompute_component_matrices(df_raw_features)
-
-    prediction_service = PredictionService.create_default()
-    df_submission = prediction_service.predict_for_all_users(df_train, df_task, movie_ids, matrices)
-
-    df_submission.to_csv('./files/submission.csv', sep=';', header=False, index=False)
-    print("Sukces! Plik submission.csv został wygenerowany.")
 
 
 if __name__ == '__main__':

@@ -16,3 +16,6 @@ class MovieService:
                 movie_data = self.tmdb_client.get_movie_features(movie_id)
                 if movie_data:
                     self.movie_repository.upsert_movie(movie_data)
+
+    def get_all_features_as_dataframe(self):
+        return self.movie_repository.get_all_features_as_dataframe()
